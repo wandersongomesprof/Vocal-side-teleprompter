@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>Teleprompter Vocal Side</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+:root{--bg:#000;--card:#111;--card2:#181818;--line:#2a2a2a;--fg:#f5f5f5;--acc:#d4af37;--mute:#8a8a8a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+body{overflow:hidden}
+[hidden]{display:none!important}
+button{font:inherit;color:var(--fg);background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:16px;font-weight:600;cursor:pointer}
+button:disabled{opacity:.3}
+button.gold{background:var(--acc);color:#000;border:0}
+button.ghost{background:transparent;border-color:transparent}
+button.danger{background:transparent;color:#ff6b5b;border-color:#5a2420}
+button.icon{width:48px;height:48px;padding:0;font-size:22px;display:flex;align-items:center;justify-content:center}
+input,textarea{font:inherit;width:100%;background:#0c0c0c;color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:17px}
+input:focus,textarea:focus{outline:none;border-color:var(--acc)}
+input[type=date]{color-scheme:dark}
+label{display:block;font-size:13px;color:var(--mute);margin:0 0 6px;text-transform:uppercase;letter-spacing:.06em}
+
+/* ===== ESTRUTURA ===== */
+.view{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column}
+.modal{display:none;z-index:30}
+header,.top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:22px;flex:1}
+.top h2{margin:0;font-size:19px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs{display:flex;gap:8px;padding:12px 16px 0;max-width:960px;width:100%;margin:0 auto}
+.tabs button{flex:1;background:transparent;border:1px solid var(--line);font-size:17px}
+.tabs button.on{background:var(--card2);border-color:var(--acc);color:var(--acc)}
+.tabs small{color:var(--mute);font-weight:500;margin-left:4px}
+.scroll{flex:1;overflow-y:auto;padding:12px 16px 120px;max-width:960px;width:100%;margin:0 auto}
+.body{flex:1;overflow-y:auto;padding:16px;max-width:960px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.searchBox{margin-bottom:12px}
+
+/* ===== CARTÕES ===== */
+.item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 10px 10px 14px;margin-bottom:10px}
+.item .num{width:38px;height:38px;border-radius:50%;border:2px solid var(--acc);color:var(--acc);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
+.item .info{flex:1;min-width:0;padding:6px 0;cursor:pointer}
+.item .t{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .s{font-size:14px;color:var(--mute);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .s b{color:var(--acc);font-weight:600}
+.item .acts{display:flex;gap:6px;flex-shrink:0}
+.item .acts button{width:44px;height:44px;padding:0;font-size:18px}
+.item.pick{cursor:pointer}
+.item.pick.sel{border-color:var(--acc)}
+.item.pick.sel .num{background:var(--acc);color:#000}
+.item.pick.have{opacity:.45}
+.item.pick .num.off{border-color:#444;color:#444}
+.empty{text-align:center;color:var(--mute);padding:50px 20px;line-height:1.6}
+.fab{position:fixed;right:20px;bottom:20px;padding:16px 22px;font-size:18px;border-radius:30px;box-shadow:0 6px 24px rgba(212,175,55,.25);z-index:5}
+.meta{color:var(--mute);font-size:15px;line-height:1.5}
+.bigPlay{font-size:20px;padding:18px;border-radius:14px}
+.row2{display:flex;gap:10px;flex-wrap:wrap}
+.row2>*{flex:1}
+
+/* ===== MENU ===== */
+#menu{position:fixed;top:66px;right:16px;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:6px;display:none;flex-direction:column;min-width:250px;z-index:50}
+#menu button{background:transparent;border:0;text-align:left;border-radius:8px;font-weight:500}
+
+/* ===== FORMULÁRIOS ===== */
+.grid{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;gap:12px}
+@media (max-width:700px){.grid{grid-template-columns:1fr 1fr}.grid .wide{grid-column:1/-1}}
+.lyr{flex:1;display:flex;flex-direction:column;min-height:300px}
+.lyr textarea{flex:1;resize:none;line-height:1.55;min-height:280px}
+.hint{color:var(--mute);font-size:14px;line-height:1.55;margin:0}
+.hint code{color:var(--acc)}
+
+/* ===== TELEPROMPTER ===== */
+#show{position:fixed;inset:0;background:#000;display:none;z-index:60}
+#scroller{position:relative;height:100%;overflow-y:scroll;padding:36vh 6vw 95vh;scrollbar-width:none}
+#scroller::-webkit-scrollbar{display:none}
+#pTitle{color:var(--acc);font-weight:800;font-size:.55em;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6em}
+#pNote{font-size:.45em;font-weight:700;color:#000;background:var(--acc);border-radius:.4em;padding:.35em .6em;margin-bottom:.9em;display:inline-block;white-space:pre-wrap}
+#pBody{font-weight:700;line-height:1.4}
+#pBody .ln{white-space:pre-wrap;min-height:1em}
+#pBody .sec{color:var(--acc);font-size:.55em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:.7em 0 .2em}
+#pBody .wait{color:#000;background:#3a3215;color:var(--acc);font-size:.55em;font-weight:800;display:inline-block;padding:.25em .7em;border-radius:.4em;margin:.6em 0 .3em;border:2px solid var(--acc)}
+#pBody .wait.active{background:var(--acc);color:#000}
+#pNext{margin-top:1.5em;padding-top:.8em;border-top:2px solid #333;color:var(--mute);font-size:.5em;font-weight:700}
+#guide{position:fixed;left:0;right:0;top:33vh;border-top:3px solid rgba(212,175,55,.4);pointer-events:none}
+#guide::before{content:"▶";position:absolute;left:6px;top:-17px;color:var(--acc);font-size:22px}
+#topBar,#ctrlBar{position:fixed;left:0;right:0;display:flex;gap:8px;padding:10px 12px;background:rgba(8,8,8,.94);transition:opacity .25s;align-items:center}
+#topBar{top:0;border-bottom:1px solid #222}
+#topBar .tt{flex:1;min-width:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:17px}
+#topBar .pos{color:var(--acc)}
+#ctrlBar{bottom:0;border-top:1px solid #222;flex-wrap:wrap;justify-content:center}
+.hide{opacity:0;pointer-events:none}
+.grp{display:flex;align-items:center;gap:6px;background:#111;border:1px solid #222;border-radius:14px;padding:4px}
+.grp span{min-width:72px;text-align:center;color:var(--acc);font-weight:700;font-size:15px}
+.grp button{padding:10px 14px}
+#playBtn{min-width:120px;font-size:20px}
+#hud{position:fixed;right:14px;top:10px;color:var(--mute);font-size:15px;font-weight:600;pointer-events:none;z-index:2;transition:top .25s}
+#hud.low{top:76px}
+#lockLayer{position:fixed;inset:0;z-index:5;display:none}
+#lockBadge{position:fixed;left:12px;top:10px;background:#1a1a1a;border:1px solid #444;color:var(--mute);border-radius:20px;padding:10px 14px;font-size:14px;font-weight:600;user-select:none;-webkit-user-select:none}
+#lockBadge.holding{border-color:var(--acc);color:var(--acc)}
+</style>
+</head>
+<body>
+
+<!-- ================= TELA PRINCIPAL ================= -->
+<section class="view" id="main">
+  <header>
+    <h1>Teleprompter <span style="color:var(--acc)">Vocal Side</span></h1>
+    <button class="icon ghost" id="menuBtn" aria-label="Menu">⋮</button>
+  </header>
+  <nav class="tabs">
+    <button id="tabRep" class="on">Repertório<small id="cRep"></small></button>
+    <button id="tabSets">Setlists<small id="cSets"></small></button>
+  </nav>
+  <div class="scroll" id="repPane">
+    <div class="searchBox"><input id="repSearch" placeholder="Buscar música ou artista" autocomplete="off"></div>
+    <div id="repList"></div>
+  </div>
+  <div class="scroll" id="setsPane" hidden><div id="setsList"></div></div>
+  <button class="gold fab" id="fab">+ Música</button>
+</section>
+
+<div id="menu">
+  <button id="mInstall" hidden style="color:var(--acc)">Instalar app neste aparelho</button>
+  <button id="mBulk">Colar várias músicas de uma vez</button>
+  <button id="mExport">Salvar backup (arquivo)</button>
+  <button id="mImport">Restaurar backup</button>
+</div>
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+
+<!-- ================= SETLIST ABERTO ================= -->
+<section class="view modal" id="setView">
+  <div class="top">
+    <button class="icon ghost" data-back aria-label="Voltar">←</button>
+    <h2 id="svName"></h2>
+    <button id="svEdit">Editar</button>
+  </div>
+  <div class="scroll">
+    <div class="meta" id="svMeta" style="margin-bottom:12px"></div>
+    <button class="gold bigPlay" id="svPlay" style="width:100%;margin-bottom:16px">▶ Iniciar show</button>
+    <div id="svList"></div>
+    <button id="svAdd" style="width:100%;margin-top:4px">+ Adicionar músicas do repertório</button>
+  </div>
+</section>
+
+<!-- ================= ESCOLHER MÚSICAS ================= -->
+<section class="view modal" id="pickView">
+  <div class="top">
+    <button class="icon ghost" data-back aria-label="Voltar">✕</button>
+    <h2>Escolher músicas</h2>
+    <button class="gold" id="pkOk">Adicionar</button>
+  </div>
+  <div class="scroll">
+    <p class="hint" style="margin-bottom:12px">Toque nas músicas na ordem em que quer que elas entrem no setlist.</p>
+    <div class="searchBox"><input id="pkSearch" placeholder="Buscar música ou artista" autocomplete="off"></div>
+    <div id="pkList"></div>
+  </div>
+</section>
+
+<!-- ================= EDITAR MÚSICA ================= -->
+<section class="view modal" id="songView">
+  <div class="top">
+    <button class="icon ghost" data-back aria-label="Voltar">✕</button>
+    <h2 id="esHead">Nova música</h2>
+    <button class="gold" id="esSave">Salvar</button>
+  </div>
+  <div class="body">
+    <div class="grid">
+      <div class="wide"><label>Nome da música</label><input id="esTitle"></div>
+      <div class="wide"><label>Artista</label><input id="esArtist" placeholder="Opcional"></div>
+      <div><label>Tom</label><input id="esKey" placeholder="Ex.: Em"></div>
+      <div><label>Duração</label><input id="esDur" placeholder="3:45" inputmode="numeric"></div>
+    </div>
+    <div><label>Observação de palco</label><input id="esNote" placeholder="Ex.: baterista conta 4, repete o último refrão 2x"></div>
+    <div class="lyr"><label>Letra</label>
+      <div class="row2" style="margin-bottom:10px">
+        <button id="esFind">🔎 Buscar letra</button>
+        <button id="esPaste">📋 Colar</button>
+        <button id="esClean">🧹 Limpar</button>
+      </div>
+      <textarea id="esLyrics" spellcheck="false" placeholder="Toque em Buscar letra, copie a letra no site, volte e toque em Colar"></textarea></div>
+    <p class="hint">Marcações na letra: escreva <code>[Refrão]</code> numa linha antes do refrão. Nas vezes seguintes, escreva só <code>[Refrão]</code> numa linha e ele repete sozinho. Vale para qualquer nome, como <code>[Pré-refrão]</code>. Para intro ou solo em que a letra deve parar, use o tempo em segundos: <code>[Intro 15s]</code>, <code>[Solo 20s]</code>.</p>
+    <p class="hint">Com a duração preenchida, a velocidade é calculada para a letra terminar junto com a música.</p>
+    <button class="danger" id="esDelete">Excluir música do repertório</button>
+  </div>
+</section>
+
+<!-- ================= EDITAR SETLIST ================= -->
+<section class="view modal" id="setEditView">
+  <div class="top">
+    <button class="icon ghost" data-back aria-label="Voltar">✕</button>
+    <h2 id="eqHead">Novo setlist</h2>
+    <button class="gold" id="eqSave">Salvar</button>
+  </div>
+  <div class="body">
+    <div><label>Nome do show</label><input id="eqName" placeholder="Ex.: Bar do Zé"></div>
+    <div class="row2">
+      <div><label>Data</label><input id="eqDate" type="date"></div>
+      <div><label>Local</label><input id="eqPlace" placeholder="Opcional"></div>
+    </div>
+    <div class="row2" id="eqExtra">
+      <button id="eqDup">Duplicar setlist</button>
+      <button class="danger" id="eqDelete">Excluir setlist</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= COLAR VÁRIAS ================= -->
+<section class="view modal" id="bulkView">
+  <div class="top">
+    <button class="icon ghost" data-back aria-label="Voltar">✕</button>
+    <h2>Colar várias músicas</h2>
+    <button class="gold" id="bkOk">Adicionar</button>
+  </div>
+  <div class="body">
+    <p class="hint">Comece cada música com uma linha iniciada por <code>#</code> e o nome dela. Todas entram no repertório.</p>
+    <div class="lyr"><textarea id="bkText" spellcheck="false" placeholder="# Nome da música 1
+letra...
+
+# Nome da música 2
+letra..."></textarea></div>
+  </div>
+</section>
+
+<!-- ================= TELEPROMPTER ================= -->
+<section id="show">
+  <div id="scroller"><div id="pTitle"></div><div id="pNote"></div><div id="pBody"></div><div id="pNext"></div></div>
+  <div id="guide"></div>
+  <div id="hud"></div>
+  <div id="topBar">
+    <button id="backBtn">← Sair</button>
+    <div class="tt"><span class="pos" id="pPos"></span> <span id="pName"></span></div>
+    <button id="lockBtn">🔒 Travar toque</button>
+    <button id="restartBtn">⟲ Início</button>
+  </div>
+  <div id="ctrlBar">
+    <button id="prevBtn">⟨ Anterior</button>
+    <div class="grp"><button id="slower">−</button><span id="speedVal"></span><button id="faster">+</button></div>
+    <button class="gold" id="playBtn">▶ Play</button>
+    <div class="grp"><button id="smaller">A−</button><span id="sizeVal"></span><button id="bigger">A+</button></div>
+    <button id="nextBtn">Próxima ⟩</button>
+  </div>
+  <div id="lockLayer"><div id="lockBadge">🔒 Segure aqui para destravar</div></div>
+</section>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  function load(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}}
+  function store(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+  function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+  function norm(s){return(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()}
+  function fmtDur(s){if(!s)return'';return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+  function parseDur(v){v=(v||'').trim();var m=v.match(/^(\d+)[:.,](\d{1,2})$/);if(m)return(+m[1])*60+(+m[2]);if(/^\d+$/.test(v))return(+v)*60;return 0}
+  function fmtDate(d){if(!d)return'';var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
+  function totalTxt(sec){if(!sec)return'';var h=Math.floor(sec/3600),m=Math.round((sec%3600)/60);return h?h+'h'+String(m).padStart(2,'0'):m+' min'}
+
+  /* ================= DADOS ================= */
+  var DB={songs:[],setlists:[],defaults:{speed:40,size:48,lock:false}};
+  function normSong(s){return{id:s.id||uid(),title:s.title||'Sem nome',artist:s.artist||'',key:s.key||'',lyrics:s.lyrics||'',note:s.note||'',dur:s.dur||0,speed:s.speed||DB.defaults.speed,size:s.size||DB.defaults.size,adj:s.adj||100}}
+  function parseBulk(t){
+    var out=[],cur=null;
+    t.split(/\r?\n/).forEach(function(l){
+      if(/^\s*#/.test(l)){cur={title:l.replace(/^\s*#+\s*/,''),b:[]};out.push(cur)}
+      else{if(!cur){cur={title:'Sem nome',b:[]};out.push(cur)}cur.b.push(l)}
+    });
+    return out.map(function(s){return normSong({title:s.title.trim(),lyrics:s.b.join('\n').trim()})})
+              .filter(function(s){return s.title!=='Sem nome'||s.lyrics});
+  }
+  (function init(){
+    try{var d=JSON.parse(load('tp_v3','null'));if(d&&d.songs){DB.songs=d.songs;DB.setlists=d.setlists||[];if(d.defaults)for(var k in d.defaults)DB.defaults[k]=d.defaults[k]}}catch(e){}
+    DB.songs=DB.songs.map(normSong);
+    if(!DB.songs.length&&!DB.setlists.length){
+      var v2=[];try{v2=JSON.parse(load('tp_songs','[]'))||[]}catch(e){}
+      if(!v2.length){var old=load('tp_text','');if(old.trim())v2=parseBulk(old)}
+      if(v2.length){DB.songs=v2.map(normSong);DB.setlists.push({id:uid(),name:'Setlist importado',date:'',place:'',songIds:DB.songs.map(function(s){return s.id})})}
+    }
+    save();
+  })();
+  function save(){store('tp_v3',JSON.stringify(DB))}
+  function getSong(id){for(var i=0;i<DB.songs.length;i++)if(DB.songs[i].id===id)return DB.songs[i];return null}
+  function getSet(id){for(var i=0;i<DB.setlists.length;i++)if(DB.setlists[i].id===id)return DB.setlists[i];return null}
+  function setSongs(st){return st.songIds.map(getSong).filter(Boolean)}
+
+  /* ================= NAVEGAÇÃO (botão voltar do Android) ================= */
+  var stack=[];
+  function openView(id,onClose){$(id).style.display=(id==='show'?'block':'flex');history.pushState({v:id},'');stack.push({id:id,onClose:onClose})}
+  function back(){history.back()}
+  window.addEventListener('popstate',function(){var v=stack.pop();if(!v)return;$(v.id).style.display='none';if(v.onClose)v.onClose();refresh()});
+  document.querySelectorAll('[data-back]').forEach(function(b){b.onclick=back});
+
+  /* ================= ABAS ================= */
+  var tab='rep';
+  function setTab(t){tab=t;$('tabRep').classList.toggle('on',t==='rep');$('tabSets').classList.toggle('on',t==='sets');$('repPane').hidden=t!=='rep';$('setsPane').hidden=t!=='sets';$('fab').textContent=t==='rep'?'+ Música':'+ Setlist';refresh()}
+  $('tabRep').onclick=function(){setTab('rep')};
+  $('tabSets').onclick=function(){setTab('sets')};
+  $('fab').onclick=function(){tab==='rep'?openSongEdit(null):openSetEdit(null)};
+
+  function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+  function btn(txt,fn,cls){var b=el('button',cls,txt);b.onclick=function(e){e.stopPropagation();fn()};return b}
+  function songSub(s){
+    var d=el('div','s');var parts=[];
+    if(s.key){var k=el('b',null,'Tom '+s.key);d.appendChild(k);parts.push(1)}
+    var rest=[s.artist,fmtDur(s.dur)].filter(Boolean).join('  ·  ');
+    if(rest)d.appendChild(document.createTextNode((parts.length?'  ·  ':'')+rest));
+    if(!s.key&&!rest)d.textContent=(s.lyrics.split('\n').filter(function(l){return l.trim()})[0]||'Sem letra').slice(0,70);
+    return d;
+  }
+  function sortedSongs(q){
+    q=norm(q);
+    return DB.songs.filter(function(s){return!q||norm(s.title+' '+s.artist).indexOf(q)>=0})
+      .sort(function(a,b){return a.title.localeCompare(b.title,'pt',{sensitivity:'base'})});
+  }
+
+  function refresh(){
+    $('cRep').textContent=DB.songs.length;$('cSets').textContent=DB.setlists.length;
+    if(tab==='rep')renderRep();else renderSets();
+    if(curSet&&$('setView').style.display==='flex')renderSetView();
+  }
+
+  /* ================= REPERTÓRIO ================= */
+  $('repSearch').oninput=renderRep;
+  function renderRep(){
+    var L=$('repList');L.innerHTML='';
+    var list=sortedSongs($('repSearch').value);
+    if(!DB.songs.length){L.innerHTML='<div class="empty">Seu repertório está vazio.<br>Toque em <b style="color:var(--acc)">+ Música</b> para cadastrar a primeira.</div>';return}
+    if(!list.length){L.appendChild(el('div','empty','Nenhuma música encontrada.'));return}
+    list.forEach(function(s){
+      var row=el('div','item');var info=el('div','info');
+      info.appendChild(el('div','t',s.title));info.appendChild(songSub(s));
+      info.onclick=function(){openPrompter([s.id],0,false)};
+      var acts=el('div','acts');acts.appendChild(btn('✎',function(){openSongEdit(s.id)}));
+      row.appendChild(info);row.appendChild(acts);L.appendChild(row);
+    });
+  }
+
+  /* ================= LISTA DE SETLISTS ================= */
+  function setMeta(st){
+    var ss=setSongs(st),tot=0,miss=0;ss.forEach(function(s){s.dur?tot+=s.dur:miss++});
+    var p=[fmtDate(st.date),st.place,ss.length+(ss.length===1?' música':' músicas')];
+    if(tot)p.push(totalTxt(tot)+(miss?' (sem contar '+miss+')':''));
+    return p.filter(Boolean).join('  ·  ');
+  }
+  function renderSets(){
+    var L=$('setsList');L.innerHTML='';
+    if(!DB.setlists.length){L.innerHTML='<div class="empty">Nenhum setlist ainda.<br>Toque em <b style="color:var(--acc)">+ Setlist</b> para montar o primeiro show.</div>';return}
+    DB.setlists.slice().sort(function(a,b){return(b.date||'').localeCompare(a.date||'')}).forEach(function(st){
+      var row=el('div','item');var info=el('div','info');
+      info.appendChild(el('div','t',st.name));info.appendChild(el('div','s',setMeta(st)));
+      info.onclick=function(){openSet(st.id)};
+      var acts=el('div','acts');
+      var pl=btn('▶',function(){startShow(st,0)},'gold');if(!st.songIds.length)pl.disabled=true;
+      acts.appendChild(pl);row.appendChild(info);row.appendChild(acts);L.appendChild(row);
+    });
+  }
+
+  /* ================= SETLIST ABERTO ================= */
+  var curSet=null;
+  function openSet(id){curSet=getSet(id);renderSetView();openView('setView',function(){curSet=null})}
+  function renderSetView(){
+    var st=curSet;if(!st)return;
+    $('svName').textContent=st.name;$('svMeta').textContent=setMeta(st);
+    var ss=setSongs(st);$('svPlay').disabled=!ss.length;
+    var L=$('svList');L.innerHTML='';
+    if(!ss.length){L.appendChild(el('div','empty','Setlist vazio. Adicione músicas do repertório.'))}
+    ss.forEach(function(s,i){
+      var row=el('div','item');row.appendChild(el('div','num',i+1));
+      var info=el('div','info');info.appendChild(el('div','t',s.title));info.appendChild(songSub(s));
+      info.onclick=function(){startShow(st,i)};
+      var acts=el('div','acts');
+      var up=btn('▲',function(){moveIn(st,i,-1)});up.disabled=i===0;
+      var dn=btn('▼',function(){moveIn(st,i,1)});dn.disabled=i===ss.length-1;
+      acts.appendChild(up);acts.appendChild(dn);
+      acts.appendChild(btn('✎',function(){openSongEdit(s.id)}));
+      acts.appendChild(btn('✕',function(){if(confirm('Tirar "'+s.title+'" deste setlist? Ela continua no repertório.')){st.songIds=st.songIds.filter(function(x){return x!==s.id});save();refresh()}}));
+      row.appendChild(info);row.appendChild(acts);L.appendChild(row);
+    });
+  }
+  function moveIn(st,i,d){st.songIds=setSongs(st).map(function(s){return s.id});var j=i+d;if(j<0||j>=st.songIds.length)return;var t=st.songIds[i];st.songIds[i]=st.songIds[j];st.songIds[j]=t;save();refresh()}
+  $('svPlay').onclick=function(){startShow(curSet,0)};
+  $('svEdit').onclick=function(){openSetEdit(curSet.id)};
+  $('svAdd').onclick=function(){openPicker()};
+
+  /* ================= ESCOLHER MÚSICAS ================= */
+  var picked=[];
+  function openPicker(){
+    if(!DB.songs.length){alert('Cadastre músicas no repertório primeiro.');return}
+    picked=[];$('pkSearch').value='';renderPicker();updPk();openView('pickView');
+  }
+  function updPk(){$('pkOk').textContent=picked.length?'Adicionar ('+picked.length+')':'Adicionar';$('pkOk').disabled=!picked.length}
+  $('pkSearch').oninput=renderPicker;
+  function renderPicker(){
+    var L=$('pkList');L.innerHTML='';
+    var list=sortedSongs($('pkSearch').value);
+    if(!list.length){L.appendChild(el('div','empty','Nenhuma música encontrada.'));return}
+    list.forEach(function(s){
+      var have=curSet.songIds.indexOf(s.id)>=0,pi=picked.indexOf(s.id);
+      var row=el('div','item pick'+(have?' have':'')+(pi>=0?' sel':''));
+      row.appendChild(el('div','num'+(pi<0?' off':''),have?'✓':(pi>=0?pi+1:'+')));
+      var info=el('div','info');info.appendChild(el('div','t',s.title));
+      var sub=songSub(s);if(have)sub.textContent='Já está neste setlist';info.appendChild(sub);
+      row.appendChild(info);
+      if(!have)row.onclick=function(){var k=picked.indexOf(s.id);k>=0?picked.splice(k,1):picked.push(s.id);renderPicker();updPk()};
+      L.appendChild(row);
+    });
+  }
+  $('pkOk').onclick=function(){curSet.songIds=curSet.songIds.concat(picked);save();back()};
+
+  /* ================= EDITAR MÚSICA ================= */
+  var editSongId=null;
+  function openSongEdit(id){
+    editSongId=id;var s=id?getSong(id):normSong({title:''});
+    $('esHead').textContent=id?'Editar música':'Nova música';
+    $('esTitle').value=id?s.title:'';$('esArtist').value=s.artist;$('esKey').value=s.key;
+    $('esDur').value=fmtDur(s.dur);$('esNote').value=s.note;$('esLyrics').value=s.lyrics;
+    $('esDelete').hidden=!id;
+    openView('songView');
+    if(!id)setTimeout(function(){$('esTitle').focus()},60);
+  }
+  $('esSave').onclick=function(){
+    var title=$('esTitle').value.trim(),lyr=$('esLyrics').value.replace(/\s+$/,'');
+    if(!title){alert('Coloque o nome da música.');return}
+    var durTxt=$('esDur').value.trim(),dur=parseDur(durTxt);
+    if(durTxt&&!dur){alert('Duração no formato 3:45.');return}
+    var s=editSongId?getSong(editSongId):normSong({});
+    if(s.dur!==dur)s.adj=100;
+    s.title=title;s.artist=$('esArtist').value.trim();s.key=$('esKey').value.trim();s.dur=dur;s.note=$('esNote').value.trim();s.lyrics=lyr;
+    if(!editSongId){DB.songs.push(s);if(curSet&&$('setView').style.display==='flex'&&$('pickView').style.display!=='flex'){}}
+    save();back();
+  };
+  $('esDelete').onclick=function(){
+    var s=getSong(editSongId);if(!s)return;
+    var n=DB.setlists.filter(function(st){return st.songIds.indexOf(s.id)>=0}).length;
+    if(!confirm('Excluir "'+s.title+'" do repertório?'+(n?' Ela também sai de '+n+(n===1?' setlist.':' setlists.'):'')))return;
+    DB.songs=DB.songs.filter(function(x){return x.id!==s.id});
+    DB.setlists.forEach(function(st){st.songIds=st.songIds.filter(function(x){return x!==s.id})});
+    save();back();
+  };
+
+  /* ---------- buscar, colar e limpar letra ---------- */
+  var CHORD=/^[A-G](#|b)?(m|M|maj|min|dim|aug|sus|add|°|º|\+)*\d*(\([^)]*\))?(\/[A-G](#|b)?)?$/;
+  var JUNK=/^(compositor|composi[cç][aã]o|fonte|letra de |lyrics|enviad[ao] por|revisad[ao] por|transcri|ver tradu|tradu[cç][aã]o|afina[cç][aã]o|capotraste|cifra:)/i;
+  function cleanLyrics(t){
+    var out=[];
+    t.replace(/\r/g,'').replace(/ /g,' ').split('\n').forEach(function(l){
+      var s=l.trim();
+      var tm=s.match(/^tom:\s*([A-G][#b]?m?)/i);
+      if(tm){if(!$('esKey').value.trim())$('esKey').value=tm[1];return}
+      if(JUNK.test(s))return;
+      if(/^[EADGBe]\|[-0-9|hpbr\/\\~x ]*$/.test(s))return;           /* linha de tablatura */
+      var tk=s.split(/\s+/).filter(Boolean);
+      var mk=tk.length&&/^\[.+\]$/.test(tk[0])?tk.shift():null;       /* "[Intro] C G Am" vira "[Intro]" */
+      var ch=tk.filter(function(x){return x!=='|'&&!/^\(?x\d+\)?$/i.test(x)});
+      if(ch.length&&ch.every(function(x){return CHORD.test(x)})&&(ch.length>1||ch[0].length>1||mk)){if(mk)out.push(mk);return}
+      out.push(l.replace(/\s+$/,''));
+    });
+    return out.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+  }
+  $('esFind').onclick=function(){
+    var q=[$('esTitle').value.trim(),$('esArtist').value.trim()].filter(Boolean).join(' ');
+    if(!q){alert('Escreva o nome da música primeiro.');return}
+    window.open('https://www.google.com/search?q='+encodeURIComponent(q+' letra'),'_blank');
+  };
+  $('esPaste').onclick=function(){
+    var ta=$('esLyrics');
+    function put(txt){var c=cleanLyrics(txt);if(!c)return;ta.value=ta.value.trim()?ta.value.replace(/\s+$/,'')+'\n\n'+c:c}
+    if(navigator.clipboard&&navigator.clipboard.readText){
+      navigator.clipboard.readText().then(put).catch(function(){ta.focus();alert('O aparelho não liberou a colagem automática. Segure o dedo dentro do campo da letra e toque em Colar.')});
+    }else{ta.focus();alert('Segure o dedo dentro do campo da letra e toque em Colar.')}
+  };
+  $('esClean').onclick=function(){$('esLyrics').value=cleanLyrics($('esLyrics').value)};
+
+  /* ================= EDITAR SETLIST ================= */
+  var editSetId=null;
+  function openSetEdit(id){
+    editSetId=id;var st=id?getSet(id):{name:'',date:'',place:''};
+    $('eqHead').textContent=id?'Editar setlist':'Novo setlist';
+    $('eqName').value=st.name;$('eqDate').value=st.date;$('eqPlace').value=st.place;
+    $('eqExtra').hidden=!id;
+    openView('setEditView');
+    if(!id)setTimeout(function(){$('eqName').focus()},60);
+  }
+  $('eqSave').onclick=function(){
+    var name=$('eqName').value.trim();if(!name){alert('Coloque o nome do show.');return}
+    if(editSetId){var st=getSet(editSetId);st.name=name;st.date=$('eqDate').value;st.place=$('eqPlace').value.trim();save();back()}
+    else{
+      var ns={id:uid(),name:name,date:$('eqDate').value,place:$('eqPlace').value.trim(),songIds:[]};
+      DB.setlists.push(ns);save();back();
+      setTimeout(function(){openSet(ns.id);if(DB.songs.length)setTimeout(openPicker,80)},80);
+    }
+  };
+  $('eqDup').onclick=function(){
+    var st=getSet(editSetId);var ns={id:uid(),name:st.name+' (cópia)',date:'',place:st.place,songIds:st.songIds.slice()};
+    DB.setlists.push(ns);save();
+    back();setTimeout(function(){back();setTimeout(function(){openSet(ns.id)},80)},80);
+  };
+  $('eqDelete').onclick=function(){
+    var st=getSet(editSetId);if(!confirm('Excluir o setlist "'+st.name+'"? As músicas continuam no repertório.'))return;
+    DB.setlists=DB.setlists.filter(function(x){return x.id!==st.id});save();
+    back();setTimeout(back,80);
+  };
+
+  /* ================= MENU ================= */
+  $('menuBtn').onclick=function(e){e.stopPropagation();var m=$('menu');m.style.display=m.style.display==='flex'?'none':'flex'};
+  document.addEventListener('click',function(){$('menu').style.display='none'});
+  $('mBulk').onclick=function(){$('bkText').value='';openView('bulkView')};
+  $('bkOk').onclick=function(){var add=parseBulk($('bkText').value);if(!add.length){alert('Nada para adicionar.');return}DB.songs=DB.songs.concat(add);save();back()};
+  $('mExport').onclick=function(){
+    var blob=new Blob([JSON.stringify({version:3,songs:DB.songs,setlists:DB.setlists,defaults:DB.defaults},null,2)],{type:'application/json'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);var d=new Date();
+    a.download='vocal-side-backup-'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'.json';
+    document.body.appendChild(a);a.click();a.remove();
+  };
+  $('mImport').onclick=function(){$('fileIn').value='';$('fileIn').click()};
+  $('fileIn').onchange=function(){
+    var f=this.files[0];if(!f)return;var r=new FileReader();
+    r.onload=function(){
+      try{
+        var d=JSON.parse(r.result);var songs=Array.isArray(d)?d:d.songs;if(!Array.isArray(songs))throw 0;
+        if((DB.songs.length||DB.setlists.length)&&!confirm('Substituir tudo o que está aqui pelo backup?'))return;
+        DB.songs=songs.map(normSong);
+        DB.setlists=Array.isArray(d.setlists)?d.setlists:(Array.isArray(d)||!d.version||d.version<3?[{id:uid(),name:'Setlist importado',date:'',place:'',songIds:DB.songs.map(function(s){return s.id})}]:[]);
+        save();refresh();
+      }catch(e){alert('Arquivo de backup inválido.')}
+    };r.readAsText(f);
+  };
+
+  /* ================= TELEPROMPTER ================= */
+  var sc=$('scroller'),queue=[],qi=0,isShow=false,playing=false,pos=0,last=0,wake=null;
+  var waits=[],waiting=null,waitEnd=0,autoSpeed=0,showStart=0,hudTimer=null,locked=false;
+  function cur(){return getSong(queue[qi])}
+  function guideY(){return window.innerHeight*0.33}
+
+  function startShow(st,i){var ids=setSongs(st).map(function(s){return s.id});if(!ids.length)return;openPrompter(ids,i,true,st.name)}
+  function openPrompter(ids,i,show){
+    queue=ids;qi=i;isShow=show;showStart=0;
+    openView('show',closePrompter);
+    var e=document.documentElement;try{(e.requestFullscreen||e.webkitRequestFullscreen).call(e)}catch(x){}
+    keepAwake();setLock(!!DB.defaults.lock&&show);
+    $('prevBtn').hidden=$('nextBtn').hidden=!show;
+    renderSong();pause();
+    hudTimer=setInterval(updHud,1000);updHud();
+  }
+  function closePrompter(){
+    pause();clearInterval(hudTimer);setLock(false,true);
+    try{if(document.fullscreenElement||document.webkitFullscreenElement)(document.exitFullscreen||document.webkitExitFullscreen).call(document)}catch(e){}
+    try{wake&&wake.release()}catch(e){}
+  }
+
+  function expand(text){
+    var lines=text.split(/\r?\n/),blocks={},out=[],mark=/^\[(.+)\]$/;
+    for(var i=0;i<lines.length;i++){
+      var m=lines[i].trim().match(mark);
+      if(!m){out.push({k:'ln',t:lines[i]});continue}
+      var label=m[1].trim(),w=label.match(/^(.*?)\s*(\d+)\s*s(eg)?$/i);
+      if(w){out.push({k:'wait',t:w[1].trim()||'Pausa',n:+w[2]});continue}
+      var key=norm(label),body=[],j=i+1;
+      while(j<lines.length&&lines[j].trim()!==''&&!mark.test(lines[j].trim())){body.push(lines[j]);j++}
+      if(body.length){blocks[key]=body;out.push({k:'sec',t:label});body.forEach(function(l){out.push({k:'ln',t:l})});i=j-1}
+      else if(blocks[key]){out.push({k:'sec',t:label+'  ↻'});blocks[key].forEach(function(l){out.push({k:'ln',t:l})})}
+      else out.push({k:'sec',t:label});
+    }
+    return out;
+  }
+  function renderSong(){
+    var s=cur();if(!s)return;
+    $('pTitle').textContent=s.title+(s.key?'  ·  Tom '+s.key:'');
+    $('pNote').textContent=s.note;$('pNote').hidden=!s.note;
+    var B=$('pBody');B.innerHTML='';waits=[];
+    expand(s.lyrics).forEach(function(x){
+      var d;
+      if(x.k==='ln')d=el('div','ln',x.t.trim()?x.t:' ');
+      else if(x.k==='sec')d=el('div','sec',x.t);
+      else{d=el('div','wait',x.t+' · '+x.n+'s');waits.push({el:d,n:x.n,label:x.t,done:false})}
+      B.appendChild(d);
+    });
+    if(isShow)$('pNext').textContent=qi<queue.length-1?'Próxima: '+getSong(queue[qi+1]).title:'Fim do setlist';
+    $('pNext').hidden=!isShow;
+    $('pPos').textContent=isShow?(qi+1)+'/'+queue.length:'';$('pName').textContent=s.title;
+    $('prevBtn').disabled=qi===0;$('nextBtn').disabled=qi>=queue.length-1;
+    applyView();pos=0;sc.scrollTop=0;
+  }
+  function applyView(){
+    var s=cur();sc.style.fontSize=s.size+'px';$('sizeVal').textContent=s.size;
+    if(s.dur){
+      var B=$('pBody'),dist=Math.max(1,B.offsetTop+B.offsetHeight-guideY());
+      var wt=waits.reduce(function(a,w){return a+w.n},0);
+      autoSpeed=dist/Math.max(10,s.dur-wt);
+      $('speedVal').textContent='Auto '+s.adj+'%';
+    }else $('speedVal').textContent='Vel '+s.speed;
+  }
+  function speed(){var s=cur();return s.dur?autoSpeed*s.adj/100:s.speed}
+
+  function tick(t){
+    if(!playing)return;
+    var dt=Math.min((t-last)/1000,0.1);last=t;
+    if(waiting){
+      var left=Math.ceil((waitEnd-t)/1000);
+      if(left<=0)endWait();else waiting.el.textContent=waiting.label+' · '+left+'s';
+      requestAnimationFrame(tick);return;
+    }
+    pos+=speed()*dt;sc.scrollTop=pos;
+    for(var i=0;i<waits.length;i++){var w=waits[i];if(!w.done&&w.el.offsetTop-sc.scrollTop<=guideY()){w.done=true;waiting=w;waitEnd=t+w.n*1000;w.el.classList.add('active');break}}
+    if(sc.scrollTop+sc.clientHeight>=sc.scrollHeight-2){pause();return}
+    requestAnimationFrame(tick);
+  }
+  function endWait(){if(!waiting)return;waiting.el.classList.remove('active');waiting.el.textContent=waiting.label+' · '+waiting.n+'s';waiting=null;last=performance.now()}
+  function play(){if(isShow&&!showStart)showStart=Date.now();playing=true;pos=sc.scrollTop;last=performance.now();$('playBtn').textContent='❚❚ Pausa';bars(false);requestAnimationFrame(tick)}
+  function pause(){playing=false;endWait();$('playBtn').textContent='▶ Play';bars(true)}
+  function bars(v){$('topBar').classList.toggle('hide',!v);$('ctrlBar').classList.toggle('hide',!v);$('hud').classList.toggle('low',v)}
+  function toggle(){if(playing&&waiting){endWait();return}playing?pause():play()}
+  function go(d){var n=qi+d;if(n<0||n>=queue.length)return;pause();qi=n;renderSong()}
+  function restart(){pause();waits.forEach(function(w){w.done=false});pos=0;sc.scrollTop=0}
+  function adjSpeed(d){var s=cur();if(s.dur)s.adj=Math.max(30,Math.min(300,s.adj+d));else{s.speed=Math.max(5,Math.min(300,s.speed+d));DB.defaults.speed=s.speed}save();applyView()}
+  function adjSize(d){var s=cur();var r=sc.scrollTop/Math.max(1,sc.scrollHeight);s.size=Math.max(20,Math.min(160,s.size+d));DB.defaults.size=s.size;save();applyView();sc.scrollTop=pos=r*sc.scrollHeight}
+
+  function updHud(){
+    var d=new Date(),txt=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    if(showStart){var e=Math.floor((Date.now()-showStart)/1000);txt='⏱ '+(e>=3600?Math.floor(e/3600)+':'+String(Math.floor(e%3600/60)).padStart(2,'0'):Math.floor(e/60))+':'+String(e%60).padStart(2,'0')+'   '+txt}
+    $('hud').textContent=txt;
+  }
+
+  /* trava de toque: libera segurando o selo por 1,5 s */
+  function setLock(v,temp){locked=v;$('lockLayer').style.display=v?'block':'none';if(!temp&&isShow){DB.defaults.lock=v;save()}}
+  $('lockBtn').onclick=function(){setLock(true)};
+  var holdT=null,badge=$('lockBadge');
+  badge.addEventListener('pointerdown',function(e){e.preventDefault();badge.classList.add('holding');badge.textContent='🔓 Continue segurando...';holdT=setTimeout(function(){setLock(false);rb()},1500)});
+  function rb(){clearTimeout(holdT);badge.classList.remove('holding');badge.textContent='🔒 Segure aqui para destravar'}
+  ['pointerup','pointercancel','pointerleave'].forEach(function(ev){badge.addEventListener(ev,rb)});
+  $('lockLayer').addEventListener('contextmenu',function(e){e.preventDefault()});
+
+  async function keepAwake(){try{if('wakeLock' in navigator)wake=await navigator.wakeLock.request('screen')}catch(e){}}
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&$('show').style.display==='block')keepAwake()});
+
+  sc.addEventListener('click',toggle);
+  $('playBtn').onclick=toggle;
+  $('prevBtn').onclick=function(){go(-1)};
+  $('nextBtn').onclick=function(){go(1)};
+  $('backBtn').onclick=back;
+  $('restartBtn').onclick=restart;
+  $('slower').onclick=function(){adjSpeed(-5)};
+  $('faster').onclick=function(){adjSpeed(5)};
+  $('smaller').onclick=function(){adjSize(-4)};
+  $('bigger').onclick=function(){adjSize(4)};
+  window.addEventListener('resize',function(){if($('show').style.display==='block')applyView()});
+
+  /* pedal bluetooth ou teclado: esquerdo = play/pausa, direito = próxima música */
+  document.addEventListener('keydown',function(e){
+    if($('show').style.display!=='block')return;
+    var k=e.key;
+    if(k===' '||k==='Enter'||k==='ArrowLeft'||k==='PageUp'){e.preventDefault();toggle()}
+    else if(k==='ArrowRight'||k==='PageDown'){e.preventDefault();go(1)}
+    else if(k==='ArrowUp'){e.preventDefault();adjSpeed(5)}
+    else if(k==='ArrowDown'){e.preventDefault();adjSpeed(-5)}
+  });
+
+  /* ================= APP INSTALÁVEL ================= */
+  var installEvt=null;
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();installEvt=e;$('mInstall').hidden=false});
+  window.addEventListener('appinstalled',function(){installEvt=null;$('mInstall').hidden=true});
+  $('mInstall').onclick=function(){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(){installEvt=null;$('mInstall').hidden=true})}};
+  if('serviceWorker' in navigator&&/^https?:/.test(location.protocol)){
+    window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
+  }
+
+  setTab('rep');
+})();
+</script>
+</body>
+</html>
